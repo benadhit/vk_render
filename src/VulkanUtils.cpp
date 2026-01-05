@@ -13,7 +13,7 @@ bool checkRequireExtensions(const std::vector<const char*>& requiredExtensions)
         bool supported = false;
         for (uint32_t i = 0; i < extensionCount; ++i)
         {
-            if (strcmp(requiredExtensions[i], extensions[idx].extensionName) != 0) {
+            if (strcmp(requiredExtensions[idx], extensions[i].extensionName) == 0) {
                 supported = true;
                 break;
             }
@@ -23,9 +23,9 @@ bool checkRequireExtensions(const std::vector<const char*>& requiredExtensions)
             return false;
         }
 
-        std::cout << "\t" << extensions[idx].extensionName
-                << "\t" << extensions[idx].specVersion 
-                << "\t" << (supported ? "[GLFW Extension]" : "") << "\n";
+        // std::cout << "\t" << extensions[idx].extensionName
+        //         << "\t" << extensions[idx].specVersion 
+        //         << "\t" << (supported ? "[GLFW Extension]" : "") << "\n";
     }
     return true;
 }
@@ -40,7 +40,7 @@ bool checkRequiredLayerExtension(const std::vector<const char*>& requiredLayers)
         bool supported = false;
         for (uint32_t idx = 0; idx < layerCount; ++idx)
         {
-            if (strcmp(requiredLayers[ridx], layers[idx].layerName) != 0) {
+            if (strcmp(requiredLayers[ridx], layers[idx].layerName) == 0) {
                 supported = true;
                 break;
             }

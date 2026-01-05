@@ -19,6 +19,16 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     return VK_FALSE;
 }
 
+VkPhysicalDevice getPhysicalDevice(VkInstance instance)
+{
+    VkPhysicalDevice physicalDevices[16];
+    uint32_t physicalDeviceCount = sizeof(physicalDevices) / sizeof(physicalDevices[0]);
+    vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices);
+
+    // TODO: select best physical device;
+    return physicalDevices[0];
+}
+
 void Application::run()
 {
     initWindow();
@@ -98,7 +108,11 @@ void Application::initVulkan()
 
     VK_CHECK(fn(instance_, &debugCreateInfo, nullptr, &debugMessenger));
 
+    physicalDevice_ = getPhysicalDevice(instance_);
+
 }
+
+
 
 void Application::shutdownVukan()
 {

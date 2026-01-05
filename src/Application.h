@@ -16,6 +16,7 @@ private:
 private:
     GLFWwindow* window;
     VkInstance instance_{VK_NULL_HANDLE};
+    VkPhysicalDevice physicalDevice_{VK_NULL_HANDLE};
     bool validationEnable = true;
     VkDebugUtilsMessengerEXT debugMessenger;
 };
