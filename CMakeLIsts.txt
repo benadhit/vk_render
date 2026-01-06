@@ -11,3 +11,6 @@ add_executable(hamon
     )
 
 target_link_libraries(hamon PRIVATE glfw)
+if(MSVC)
+target_compile_definitions(hamon PRIVATE VK_USE_PLATFORM_WIN32_KHR GLFW_EXPOSE_NATIVE_WIN32)
+endif()
