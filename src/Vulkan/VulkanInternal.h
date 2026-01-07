@@ -2,6 +2,8 @@
 #define HAMON_VULKAN_INTERNAL_H__
 #include "vulkan.h"
 #include <assert.h>
+#include <vector>
+#include <string>
 #define VK_CHECK(call)                  \
     do{                                 \
         VkResult result = call;         \
