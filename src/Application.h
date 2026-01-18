@@ -9,12 +9,17 @@ public:
 private:
     void initWindow();
     void shutdownWindow();
+    void initRenderer();
     void initVulkan();
     void shutdownVukan();
+
+    void render();
     
     void mainLoop();
 private:
     GLFWwindow* window;
+    class Renderer* renderer_;
+
     VkInstance instance_{VK_NULL_HANDLE};
     VkPhysicalDevice physicalDevice_{VK_NULL_HANDLE};
     VkDevice device_{VK_NULL_HANDLE};
@@ -24,6 +29,8 @@ private:
     uint32_t presentQueueFamilyIndex_{UINT32_MAX};
     VkSurfaceKHR    surface_{VK_NULL_HANDLE};
     VkSwapchainKHR  swapchain_{VK_NULL_HANDLE};
+    VkExtent2D extent_;
+    VkFormat format_;
     std::vector<VkImage> swapchainImages_;
     std::vector<VkImageView> swapchainImageViews_;
     std::vector<VkFramebuffer> swapchainFrameBuffers_;

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include "Renderer.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -26,6 +27,7 @@ void Application::run()
 {
     initWindow();
     initVulkan();
+    initRenderer();
     mainLoop();
     shutdownVukan();
 }
@@ -39,11 +41,29 @@ void Application::initWindow()
     window = glfwCreateWindow(width, heght, "Vulkan", nullptr, nullptr);
 }
 
+void Application::initRenderer()
+{
+    RendererContext context;
+    context.device_ = device_;
+    context.extent_ = extent_;
+    context.format_ = format_;
+    context.graphicsQueueFamilyIndex = graphicsQueueFamilyIndex_;
+    context.imageViews_ = swapchainImageViews_;
+    context.swapchain_ = swapchain_;
+    context.graphicsQueue_ = graphicsQueue_;
+    renderer_ = new Renderer(context);
+    renderer_->init("../vert.spv", "../frag.spv");
+}
+
 void Application::shutdownWindow()
 {
     glfwDestroyWindow(window);
 }
 
+void Application::render()
+{
+    renderer_->render();
+}
 
 void Application::initVulkan()
 {
@@ -118,6 +138,8 @@ void Application::initVulkan()
 
     SwapchainSupportDetails details = fetchSwapchainSupportDetails(physicalDevice_, device_, surface_);
     SwapchainSettigs setting = selectOptimalSwapchainSetting(details);
+    extent_ = setting.extent;
+    format_ = setting.format.format;
     swapchain_ = createSwapchain(physicalDevice_, 
         device_, 
         surface_, 
@@ -158,5 +180,6 @@ void Application::mainLoop()
         return;
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        render();
     }
 }

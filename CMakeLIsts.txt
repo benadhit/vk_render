@@ -18,6 +18,7 @@ add_executable(hamon
     src/Application.cpp
     src/VulkanUtils.cpp
     src/IoUtils.cpp
+    src/Renderer.cpp
     )
 add_dependencies(hamon build_shader)
 target_link_libraries(hamon PRIVATE glfw)

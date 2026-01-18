@@ -12,6 +12,10 @@
     }while(0)
 
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) sizeof(arr)/sizeof(arr[0])
+#endif
+
 template<class T>
 constexpr const T& clamp(const T& v, const T& lo, const T& hi)
 {
@@ -47,6 +51,7 @@ VkDevice createDevice(VkPhysicalDevice physicalDevice,
     VkSurfaceKHR surface,
     uint32_t& graphicsQueueFamilyIndex,
     uint32_t& presentQueueFamilyIndex);
+
 VkSwapchainKHR createSwapchain(VkPhysicalDevice physicalDevice,
     VkDevice device, VkSurfaceKHR surface, 
     const SwapchainSupportDetails& detatils,
@@ -64,10 +69,22 @@ VkSemaphore createSemaphore(VkDevice device);
 
 VkShaderModule createShaderModule(VkDevice device, const char* spvPath);
 
-VkPipeline createGrphicsPipeline(VkDevice device, 
-    VkShaderModule vertShaderModule, 
-    VkShaderModule fragShaderModule,
-    uint32_t width,
-    uint32_t height);
+VkPipelineLayout createPipelineLayout(VkDevice device);
 
+VkRenderPass createRenderPass(VkDevice device);
+
+VkFramebuffer createFrambuffer(VkDevice device,
+    VkRenderPass renderPass,
+    VkImageView imageView,
+    VkExtent2D extent);
+
+VkPipeline createGrphicsPipeline(VkDevice device, 
+    VkPipelineLayout pipelineLayout,
+    VkRenderPass renderPass,
+    VkShaderModule vertShaderModule, 
+    VkShaderModule fragShaderModule);
+VkCommandBuffer createCommandBuffer(VkDevice device, 
+    VkCommandPool commandPool);
+
+VkFence createFence(VkDevice device);
 #endif

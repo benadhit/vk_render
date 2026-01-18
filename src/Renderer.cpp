@@ -1,15 +1,153 @@
 #include "Renderer.h"
-
-void Renderer::init(VkDevice device, const char* vertSpv, const char* fragSpv)
+Renderer::Renderer(const RendererContext& context)
+    : context_(context)
 {
-    device_ = device;
-    vertShader_ = createShaderModule(device, vertSpv);
-    fragShader_ = createShaderModule(device_, fragSpv);
 
+}
+
+void Renderer::init(const char* vertSpv, const char* fragSpv)
+{
+    vertShader_ = createShaderModule(context_.device_, vertSpv);
+    fragShader_ = createShaderModule(context_.device_, fragSpv);
+    pipelineLayout_ = createPipelineLayout(context_.device_);
+    renderPass_ = createRenderPass(context_.device_);
+    graphicPipeline_ = createGrphicsPipeline(context_.device_, 
+        pipelineLayout_, 
+        renderPass_, 
+        vertShader_,
+        fragShader_);
+    commandPool_ = createCommandPool(context_.device_, context_.graphicsQueueFamilyIndex);
+    
+    framebuffers_.resize(context_.imageViews_.size());
+    for (uint32_t i = 0; i < framebuffers_.size(); ++ i) {
+        framebuffers_[i] = createFrambuffer(context_.device_, renderPass_, 
+        context_.imageViews_[i], 
+        context_.extent_);
+
+    }
+
+    // sync object
+    MAX_FRMAE_IN_FLIGHTS = framebuffers_.size();
+    commandBuffers_.resize(MAX_FRMAE_IN_FLIGHTS);
+    imageAvailableSemaphores_.resize(MAX_FRMAE_IN_FLIGHTS);
+    imageFinishedSemaphores_.resize(MAX_FRMAE_IN_FLIGHTS);
+    inFlights_.resize(MAX_FRMAE_IN_FLIGHTS);
+
+    for (uint32_t i = 0; i < MAX_FRMAE_IN_FLIGHTS; ++ i) {
+        commandBuffers_[i] = createCommandBuffer(context_.device_, commandPool_);
+        imageAvailableSemaphores_[i] = createSemaphore(context_.device_);
+        imageFinishedSemaphores_[i] = createSemaphore(context_.device_);
+        inFlights_[i] = createFence(context_.device_);
+    }
+}
+
+void Renderer::frameStart()
+{
+    vkWaitForFences(context_.device_, 1, &inFlights_[currentFrame], VK_TRUE, UINT64_MAX);
+    if (inFlights_[currentFrame] != VK_NULL_HANDLE)
+    {
+        vkResetFences(context_.device_, 1, &inFlights_[currentFrame]);
+    }
+    // inFlights_[imageIndex] = inFlights_[currentFrame];
+
+    vkAcquireNextImageKHR(context_.device_,
+        context_.swapchain_,
+        UINT64_MAX, 
+        imageAvailableSemaphores_[currentFrame],
+        VK_NULL_HANDLE,
+        &imageIndex);
+    VkCommandBuffer commandBuffer = commandBuffers_[currentFrame];
+
+    VkCommandBufferBeginInfo beginInfo ={};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+    
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkClearValue clearValue = {};
+    clearValue.color = {1,0,0,1};
+
+    VkRenderPassBeginInfo passBeginInfo = {};
+    passBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    passBeginInfo.pNext = nullptr;
+    passBeginInfo.renderPass = renderPass_;
+    passBeginInfo.clearValueCount =1;
+    passBeginInfo.pClearValues = &clearValue;
+    passBeginInfo.renderArea.extent = context_.extent_;
+    passBeginInfo.renderArea.offset = {0,0};
+    passBeginInfo.framebuffer = framebuffers_[imageIndex];
+    vkCmdBeginRenderPass(commandBuffer, &passBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline_);
+}
+
+void Renderer::render()
+{
+    frameStart();
+    VkCommandBuffer commandBuffer = commandBuffers_[currentFrame];
+    // VkViewport viewport;
+    // VkRect2D scissor;
+    // vkCmdSetViewport();
+    // vkCmdSetScissor();
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    frameEnd();
+}
+
+void Renderer::frameEnd()
+{
+    VkCommandBuffer commandBuffer = commandBuffers_[currentFrame];
+    vkCmdEndRenderPass(commandBuffer);
+    vkEndCommandBuffer(commandBuffer);
+
+    //
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores_[currentFrame]};
+    VkSemaphore signalSemaphores[] = {imageFinishedSemaphores_[currentFrame]};
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext=  nullptr;
+    submitInfo.pCommandBuffers = &commandBuffer;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+    vkQueueSubmit(context_.graphicsQueue_, 1, &submitInfo,  inFlights_[currentFrame]);
+
+    VkPresentInfoKHR presentInfo ={};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.pNext =nullptr;
+    presentInfo.pResults = nullptr;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &context_.swapchain_;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    vkQueuePresentKHR(context_.graphicsQueue_, &presentInfo);
+    currentFrame = (currentFrame + 1) % MAX_FRMAE_IN_FLIGHTS;
 }
 
 void Renderer::shutdown()
 {
-    vkDestroyShaderModule(device_, vertShader_, nullptr);
-    vkDestroyShaderModule(device_, fragShader_, nullptr);
+    for (uint32_t i =0 ; i < MAX_FRMAE_IN_FLIGHTS; ++i) {
+        vkDestroySemaphore(context_.device_, imageAvailableSemaphores_[i], nullptr);
+        vkDestroySemaphore(context_.device_, imageFinishedSemaphores_[i], nullptr);
+        vkDestroyFence(context_.device_, inFlights_[i], nullptr);
+    }
+    imageAvailableSemaphores_.clear();
+    imageFinishedSemaphores_.clear();
+    inFlights_.clear();
+
+    vkDestroyCommandPool(context_.device_, commandPool_, nullptr);
+    for (auto & framebuffer: framebuffers_) {
+        vkDestroyFramebuffer(context_.device_, framebuffer, nullptr);
+    }
+    framebuffers_.clear();
+    vkDestroyShaderModule(context_.device_, vertShader_, nullptr);
+    vkDestroyShaderModule(context_.device_, fragShader_, nullptr);
+    vkDestroyPipelineLayout(context_.device_, pipelineLayout_, nullptr);
+    vkDestroyRenderPass(context_.device_, renderPass_, nullptr);
+    vkDestroyPipeline(context_.device_, graphicPipeline_, nullptr);
 }
