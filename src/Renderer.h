@@ -6,9 +6,16 @@ struct RendererContext {
     VkFormat format_;
     uint32_t graphicsQueueFamilyIndex;
     VkQueue graphicsQueue_;
+    VkPhysicalDevice physicalDevice_;
+    VkCommandPool commandPool_;
     VkDevice device_{VK_NULL_HANDLE};
     VkSwapchainKHR  swapchain_;
+    VkPhysicalDeviceMemoryProperties memoryProperties_;
     std::vector<VkImageView>   imageViews_;
+};
+
+struct FrameData {
+
 };
 
 class Renderer {
@@ -16,6 +23,7 @@ public:
     Renderer() = default;
 
     Renderer(const RendererContext& context);
+    
     void init(const char* vertSpv, 
         const char* fragShader);
 
@@ -26,9 +34,15 @@ public:
     void frameEnd();
 
     void shutdown();
-
+private:
+    void createVertexBuffer(size_t vertexSize);
+    void createIndexBuffer(size_t indexSize);
 private:
     RendererContext context_;
+    VkBuffer vertexBuffer_{VK_NULL_HANDLE};
+    VkDeviceMemory vertexBufferMemory_{VK_NULL_HANDLE};
+    VkBuffer indexBuffer_{VK_NULL_HANDLE};
+    VkDeviceMemory indexBufferMemory_{VK_NULL_HANDLE};
     uint32_t imageIndex = 0;
     uint32_t currentFrame= 0;
     VkPipelineLayout pipelineLayout_{VK_NULL_HANDLE};
@@ -42,6 +56,4 @@ private:
     std::vector<VkSemaphore> imageAvailableSemaphores_;
     std::vector<VkSemaphore> imageFinishedSemaphores_;
     std::vector<VkFence> inFlights_;
-    VkCommandPool commandPool_;
-
 };

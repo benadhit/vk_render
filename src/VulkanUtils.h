@@ -42,6 +42,7 @@ struct SwapchainSettigs {
 
 bool checkRequireExtensions(const std::vector<const char*>& requiredExtensions);
 bool checkRequiredLayerExtension(const std::vector<const char*>& requiredLayers);
+
 SwapchainSupportDetails fetchSwapchainSupportDetails(VkPhysicalDevice physicalDevice, 
     VkDevice device, 
     VkSurfaceKHR surface);
@@ -82,9 +83,39 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     VkPipelineLayout pipelineLayout,
     VkRenderPass renderPass,
     VkShaderModule vertShaderModule, 
-    VkShaderModule fragShaderModule);
+    VkShaderModule fragShaderModule,
+    uint32_t width,
+    uint32_t height);
 VkCommandBuffer createCommandBuffer(VkDevice device, 
     VkCommandPool commandPool);
 
 VkFence createFence(VkDevice device);
+
+VkBuffer createBuffer(VkDevice device, 
+    VkBufferUsageFlags usage, 
+    size_t size);
+
+VkDeviceMemory createBufferMemory(VkDevice device,
+    VkBuffer buffer, 
+    VkPhysicalDeviceMemoryProperties memoryProperties,
+    VkMemoryPropertyFlags memoryPropertyFlags);
+
+void createBufferWithMemory(VkDevice device,
+    VkBuffer* buffer,
+    VkDeviceSize bufferSize,
+    VkBufferUsageFlags bufferUsage,
+    VkDeviceMemory *bufferMemory, 
+    VkPhysicalDeviceMemoryProperties memoryProperties,
+    VkMemoryPropertyFlags memoryPropertyFlags);
+
+uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties,
+    uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+void copyBuffer(
+    VkDevice device,
+    VkQueue queue, 
+    VkCommandBuffer commandBuffer,
+    VkBuffer dstBuffer,
+    VkBuffer srcBuffer,
+    VkDeviceSize size);
 #endif

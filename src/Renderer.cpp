@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Vertex.h"
 Renderer::Renderer(const RendererContext& context)
     : context_(context)
 {
@@ -15,8 +16,10 @@ void Renderer::init(const char* vertSpv, const char* fragSpv)
         pipelineLayout_, 
         renderPass_, 
         vertShader_,
-        fragShader_);
-    commandPool_ = createCommandPool(context_.device_, context_.graphicsQueueFamilyIndex);
+        fragShader_,
+        context_.extent_.width,
+        context_.extent_.height);
+
     
     framebuffers_.resize(context_.imageViews_.size());
     for (uint32_t i = 0; i < framebuffers_.size(); ++ i) {
@@ -34,11 +37,49 @@ void Renderer::init(const char* vertSpv, const char* fragSpv)
     inFlights_.resize(MAX_FRMAE_IN_FLIGHTS);
 
     for (uint32_t i = 0; i < MAX_FRMAE_IN_FLIGHTS; ++ i) {
-        commandBuffers_[i] = createCommandBuffer(context_.device_, commandPool_);
+        commandBuffers_[i] = createCommandBuffer(context_.device_, context_.commandPool_);
         imageAvailableSemaphores_[i] = createSemaphore(context_.device_);
         imageFinishedSemaphores_[i] = createSemaphore(context_.device_);
         inFlights_[i] = createFence(context_.device_);
     }
+
+    VkBuffer stagingBuffer = createBuffer(context_.device_,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1024 * 1024 * 24);
+
+    VkDeviceSize vertexSize = vertices.size() * sizeof(Vertex);
+    VkDeviceSize indexSize = indices.size()  * sizeof(uint16_t);
+
+    VkCommandBuffer stagingCommandBuffer = createCommandBuffer(context_.device_, 
+        context_.commandPool_);
+
+    VkDeviceMemory stagingBufferMemory = createBufferMemory(
+        context_.device_,
+        stagingBuffer,
+        context_.memoryProperties_, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    vkBindBufferMemory(context_.device_, stagingBuffer, stagingBufferMemory, 0);
+    void * data = nullptr;
+    vkMapMemory(context_.device_, stagingBufferMemory, 0, 1024 * 1024 * 24, 0, &data);
+    memcpy(data, vertices.data(), vertexSize);
+    vkUnmapMemory(context_.device_, stagingBufferMemory);
+    createVertexBuffer(vertexSize);
+    copyBuffer(context_.device_,
+        context_.graphicsQueue_,
+        stagingCommandBuffer, 
+        vertexBuffer_,
+        stagingBuffer, 
+        vertexSize);
+
+    createIndexBuffer(indices.size()  *sizeof(uint16_t));
+    memcpy(data, indices.data(), indexSize);
+    copyBuffer(context_.device_,
+        context_.graphicsQueue_,
+        stagingCommandBuffer, 
+        indexBuffer_,
+        stagingBuffer, 
+        indexSize);
+    vkFreeCommandBuffers(context_.device_, context_.commandPool_, 1, &stagingCommandBuffer);
+    
 }
 
 void Renderer::frameStart()
@@ -48,7 +89,6 @@ void Renderer::frameStart()
     {
         vkResetFences(context_.device_, 1, &inFlights_[currentFrame]);
     }
-    // inFlights_[imageIndex] = inFlights_[currentFrame];
 
     vkAcquireNextImageKHR(context_.device_,
         context_.swapchain_,
@@ -57,7 +97,7 @@ void Renderer::frameStart()
         VK_NULL_HANDLE,
         &imageIndex);
     VkCommandBuffer commandBuffer = commandBuffers_[currentFrame];
-
+    vkResetCommandBuffer(commandBuffer, 0);
     VkCommandBufferBeginInfo beginInfo ={};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.pNext = nullptr;
@@ -67,7 +107,7 @@ void Renderer::frameStart()
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
     VkClearValue clearValue = {};
-    clearValue.color = {1,0,0,1};
+    clearValue.color = {0,0,0,1};
 
     VkRenderPassBeginInfo passBeginInfo = {};
     passBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -79,18 +119,35 @@ void Renderer::frameStart()
     passBeginInfo.renderArea.offset = {0,0};
     passBeginInfo.framebuffer = framebuffers_[imageIndex];
     vkCmdBeginRenderPass(commandBuffer, &passBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline_);
+
+      
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(context_.extent_.width);
+    viewport.height = static_cast<float>(context_.extent_.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = context_.extent_;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
 }
 
 void Renderer::render()
 {
     frameStart();
     VkCommandBuffer commandBuffer = commandBuffers_[currentFrame];
-    // VkViewport viewport;
-    // VkRect2D scissor;
-    // vkCmdSetViewport();
-    // vkCmdSetScissor();
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    VkBuffer vertexBuffers[] = {vertexBuffer_};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline_);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer_, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(commandBuffer, 
+        static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
     frameEnd();
 }
 
@@ -131,7 +188,7 @@ void Renderer::frameEnd()
 
 void Renderer::shutdown()
 {
-    for (uint32_t i =0 ; i < MAX_FRMAE_IN_FLIGHTS; ++i) {
+    for (uint32_t i = 0 ; i < MAX_FRMAE_IN_FLIGHTS; ++i) {
         vkDestroySemaphore(context_.device_, imageAvailableSemaphores_[i], nullptr);
         vkDestroySemaphore(context_.device_, imageFinishedSemaphores_[i], nullptr);
         vkDestroyFence(context_.device_, inFlights_[i], nullptr);
@@ -140,7 +197,7 @@ void Renderer::shutdown()
     imageFinishedSemaphores_.clear();
     inFlights_.clear();
 
-    vkDestroyCommandPool(context_.device_, commandPool_, nullptr);
+    vkDestroyCommandPool(context_.device_, context_.commandPool_, nullptr);
     for (auto & framebuffer: framebuffers_) {
         vkDestroyFramebuffer(context_.device_, framebuffer, nullptr);
     }
@@ -150,4 +207,30 @@ void Renderer::shutdown()
     vkDestroyPipelineLayout(context_.device_, pipelineLayout_, nullptr);
     vkDestroyRenderPass(context_.device_, renderPass_, nullptr);
     vkDestroyPipeline(context_.device_, graphicPipeline_, nullptr);
+}
+
+void Renderer::createVertexBuffer(size_t vertexSize)
+{
+    vertexBuffer_ = createBuffer(context_.device_, 
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+        vertexSize);
+    vertexBufferMemory_ = createBufferMemory(context_.device_, 
+        vertexBuffer_, 
+        context_.memoryProperties_, 
+        VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
+    vkBindBufferMemory(context_.device_, vertexBuffer_, vertexBufferMemory_, 0);
+}
+
+void Renderer::createIndexBuffer(size_t indexSize)
+{
+    uint32_t indiceSize = sizeof(uint32_t) * indices.size();
+    indexBuffer_ = createBuffer(context_.device_, 
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+        indexSize);
+    indexBufferMemory_ = createBufferMemory(context_.device_, 
+        indexBuffer_, 
+        context_.memoryProperties_, 
+        VK_MEMORY_HEAP_DEVICE_LOCAL_BIT);
+    
+    vkBindBufferMemory(context_.device_, indexBuffer_, indexBufferMemory_, 0);
 }

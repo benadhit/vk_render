@@ -50,7 +50,10 @@ void Application::initRenderer()
     context.graphicsQueueFamilyIndex = graphicsQueueFamilyIndex_;
     context.imageViews_ = swapchainImageViews_;
     context.swapchain_ = swapchain_;
+    context.commandPool_ = createCommandPool(device_, graphicsQueueFamilyIndex_);
     context.graphicsQueue_ = graphicsQueue_;
+    
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice_, &context.memoryProperties_);
     renderer_ = new Renderer(context);
     renderer_->init("../vert.spv", "../frag.spv");
 }

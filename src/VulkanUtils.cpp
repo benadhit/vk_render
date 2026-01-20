@@ -3,6 +3,8 @@
 #include <iostream>
 #include <algorithm>
 #include "IoUtils.h"
+#include "Vertex.h"
+
 bool checkRequireExtensions(const std::vector<const char*>& requiredExtensions)
 {
     VkExtensionProperties extensions[128];
@@ -56,7 +58,6 @@ bool checkRequiredLayerExtension(const std::vector<const char*>& requiredLayers)
     }
     return true;
 }
-
 
 SwapchainSettigs selectOptimalSwapchainSetting(const SwapchainSupportDetails& details)
 {
@@ -166,6 +167,8 @@ VkDevice createDevice(VkPhysicalDevice physicalDevice,
         "VK_KHR_swapchain",
     };
 
+    VkPhysicalDeviceFeatures features={};
+
     VkPhysicalDeviceFeatures deviceFeatures ={};
     VkDeviceCreateInfo deviceInfo ={};
     deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -175,6 +178,7 @@ VkDevice createDevice(VkPhysicalDevice physicalDevice,
     deviceInfo.pEnabledFeatures = &deviceFeatures;
     deviceInfo.enabledExtensionCount = sizeof(deviceExtension)/sizeof(deviceExtension[0]);
     deviceInfo.ppEnabledExtensionNames = deviceExtension;
+    deviceInfo.pEnabledFeatures = &features;
     VkDevice device{VK_NULL_HANDLE};
     VK_CHECK(vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device));
     return device ;
@@ -350,7 +354,9 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     VkPipelineLayout pipelineLayout,
     VkRenderPass renderPass,
     VkShaderModule vertShaderModule, 
-    VkShaderModule fragShaderModule)
+    VkShaderModule fragShaderModule,
+    uint32_t width,
+    uint32_t height)
 {
     VkPipelineShaderStageCreateInfo shaderStages[2]{};
     shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -367,14 +373,16 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     shaderStages[1].pName = "main";
     shaderStages[1].pSpecializationInfo = nullptr;
 
+    VkVertexInputBindingDescription bindingDescription = Vertex::getVertexBindingDescription();
+    auto attributes = Vertex::getAttributeDescription();
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.flags = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-
+    vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
+    vertexInputInfo.vertexAttributeDescriptionCount = attributes.size();
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
     // 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly ={};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -387,6 +395,18 @@ VkPipeline createGrphicsPipeline(VkDevice device,
         VK_DYNAMIC_STATE_SCISSOR,
     };
 
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)width;
+    viewport.height = (float)height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = {width, height};
+
     VkPipelineDynamicStateCreateInfo dynamicStateInfo = {};
     dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicStateInfo.flags = 0;
@@ -394,12 +414,19 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     dynamicStateInfo.pDynamicStates = dynamicStates;
     dynamicStateInfo.dynamicStateCount = ARRAY_SIZE(dynamicStates);
 
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
 
     VkPipelineRasterizationStateCreateInfo rasterizationState ={};
     rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizationState.pNext = nullptr;
     rasterizationState.flags = 0;
-    rasterizationState.rasterizerDiscardEnable = VK_FALSE;
+    rasterizationState.rasterizerDiscardEnable = VK_FALSE ;
     rasterizationState.depthBiasEnable = VK_FALSE;
     rasterizationState.depthClampEnable = VK_FALSE;
     rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
@@ -474,7 +501,7 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     graphicsPipelineInfo.pStages = shaderStages;
     graphicsPipelineInfo.pVertexInputState = &vertexInputInfo;
     graphicsPipelineInfo.pInputAssemblyState = &inputAssembly;
-    graphicsPipelineInfo.pViewportState = nullptr;
+    graphicsPipelineInfo.pViewportState = &viewportState;;
     graphicsPipelineInfo.pRasterizationState = &rasterizationState;
     graphicsPipelineInfo.pMultisampleState = &multisamplingInfo;
     graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
@@ -523,7 +550,6 @@ VkCommandBuffer createCommandBuffer(VkDevice device,
     VkCommandBufferAllocateInfo commandBufferInfo ={};
     commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     commandBufferInfo.pNext =  nullptr;
-
     commandBufferInfo.commandBufferCount =1;
     commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     commandBufferInfo.commandPool = commandPool;
@@ -541,4 +567,111 @@ VkFence createFence(VkDevice device)
     VkFence fence{VK_NULL_HANDLE};
     VK_CHECK(vkCreateFence(device, &fenceInfo, nullptr, &fence));
     return fence;
+}
+
+VkBuffer createBuffer(VkDevice device, 
+    VkBufferUsageFlags usage,
+    size_t size)
+{
+    VkBufferCreateInfo bufferInfo ={};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.pNext = nullptr;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.pQueueFamilyIndices = nullptr;
+    bufferInfo.queueFamilyIndexCount = 0;
+    VkBuffer buffer{VK_NULL_HANDLE};
+    VK_CHECK(vkCreateBuffer(device, &bufferInfo, nullptr, &buffer));
+    return buffer;
+}
+
+VkDeviceMemory createBufferMemory(VkDevice device, 
+    VkBuffer buffer,
+    VkPhysicalDeviceMemoryProperties memoryProperties,
+    VkMemoryPropertyFlags memoryPropertyFlags)
+{
+    VkMemoryRequirements memoryRequirements ={};
+    vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;   
+    allocInfo.memoryTypeIndex = findMemoryType(memoryProperties, memoryRequirements.memoryTypeBits, 
+        memoryPropertyFlags);
+    allocInfo.allocationSize = memoryRequirements.size;
+    VkDeviceMemory deviceMemory {VK_NULL_HANDLE};
+    VK_CHECK(vkAllocateMemory(device, &allocInfo, nullptr, &deviceMemory));
+    return deviceMemory;
+}
+
+void createBufferWithMemory(VkDevice device,
+    VkBuffer* buffer,
+    VkDeviceSize bufferSize,
+    VkBufferUsageFlags bufferUsage,
+    VkDeviceMemory *bufferMemory, 
+    VkPhysicalDeviceMemoryProperties memoryProperties,
+    VkMemoryPropertyFlags memoryPropertyFlags)
+{
+    VkBufferCreateInfo bufferInfo ={};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.pNext = nullptr;
+    bufferInfo.size = bufferSize;
+    bufferInfo.usage = bufferUsage;
+    bufferInfo.pQueueFamilyIndices = nullptr;
+    bufferInfo.queueFamilyIndexCount = 0;
+    VK_CHECK(vkCreateBuffer(device, &bufferInfo, nullptr, buffer));
+
+    VkMemoryRequirements memoryRequirements = {};
+    vkGetBufferMemoryRequirements(device, *buffer, &memoryRequirements);
+    
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;   
+    allocInfo.memoryTypeIndex = findMemoryType(memoryProperties, memoryRequirements.memoryTypeBits, 
+        memoryPropertyFlags);
+    allocInfo.allocationSize = memoryRequirements.size;
+    VK_CHECK(vkAllocateMemory(device, &allocInfo, nullptr, bufferMemory));
+    vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
+}
+
+uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties,
+    uint32_t typeFilter, 
+    VkMemoryPropertyFlags properties)
+{
+    for (uint32_t i =0; i < memoryProperties.memoryTypeCount; i++) {
+        uint32_t memoryTypeProperties = memoryProperties.memoryTypes[i].propertyFlags;
+        if (typeFilter & (1 << i) && (memoryTypeProperties & properties) == properties) {
+            return i;
+        }
+    } 
+    return UINT32_MAX;
+}
+
+void copyBuffer(
+    VkDevice device,
+    VkQueue queue,
+    VkCommandBuffer commandBuffer,
+    VkBuffer dstBuffer,
+    VkBuffer srcBuffer,
+    VkDeviceSize size)
+{
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.pInheritanceInfo = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    VkBufferCopy copyRegion;
+    copyRegion.size = size;
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = nullptr;
+    submitInfo.pCommandBuffers = &commandBuffer;
+    submitInfo.commandBufferCount = 1;
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkDeviceWaitIdle(device);
 }
