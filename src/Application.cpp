@@ -51,6 +51,7 @@ void Application::initRenderer()
     context.imageViews_ = swapchainImageViews_;
     context.swapchain_ = swapchain_;
     context.commandPool_ = createCommandPool(device_, graphicsQueueFamilyIndex_);
+    context.descriptorPool_ = createDescriptorPool(device_);
     context.graphicsQueue_ = graphicsQueue_;
     
     vkGetPhysicalDeviceMemoryProperties(physicalDevice_, &context.memoryProperties_);
@@ -155,16 +156,18 @@ void Application::initVulkan()
     swapchainImages_.resize(swapchianImageCount);
     VK_CHECK(vkGetSwapchainImagesKHR(device_, swapchain_, &swapchianImageCount, swapchainImages_.data()));
     swapchainImageViews_.resize(swapchianImageCount);
-    for (size_t i =0; i < swapchainImageViews_.size(); ++i) 
+    for (size_t i = 0; i < swapchainImageViews_.size(); ++i) 
     {
-        swapchainImageViews_[i] = createImageView(device_, 
+        swapchainImageViews_[i] = createImageView2D(device_, 
             swapchainImages_[i], 
+            VK_IMAGE_ASPECT_COLOR_BIT,
             setting.format.format);
     }
 }
 
 void Application::shutdownVukan()
 {
+    renderer_->shutdown();
     for (auto& imageView: swapchainImageViews_) {
         vkDestroyImageView(device_, imageView, nullptr);
     }
@@ -175,6 +178,7 @@ void Application::shutdownVukan()
     vkDestroySurfaceKHR(instance_, surface_, nullptr);
     surface_ = NULL;
     vkDestroyInstance(instance_, nullptr);
+
 }
 
 void Application::mainLoop()

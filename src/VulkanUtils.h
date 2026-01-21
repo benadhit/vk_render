@@ -60,8 +60,9 @@ VkSwapchainKHR createSwapchain(VkPhysicalDevice physicalDevice,
     uint32_t graphicsQueueFamilyIndex, 
     uint32_t presentQueueFamilyIndex);
 
-VkImageView createImageView(VkDevice device, 
+VkImageView createImageView2D(VkDevice device, 
     VkImage image, 
+    VkImageAspectFlags aspectFlag, 
     VkFormat format);
 
 VkCommandPool createCommandPool(VkDevice device, uint32_t queueFamilyIndex);
@@ -70,9 +71,14 @@ VkSemaphore createSemaphore(VkDevice device);
 
 VkShaderModule createShaderModule(VkDevice device, const char* spvPath);
 
-VkPipelineLayout createPipelineLayout(VkDevice device);
+VkPipelineLayout createPipelineLayout(VkDevice device, 
+    VkDescriptorSetLayout* descriptorSetLayout, 
+    uint32_t descriptorSetLayoutSize);
 
 VkRenderPass createRenderPass(VkDevice device);
+
+VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device,
+    VkDescriptorSetLayoutBinding* bindings, uint32_t bindingSize);
 
 VkFramebuffer createFrambuffer(VkDevice device,
     VkRenderPass renderPass,
@@ -91,12 +97,19 @@ VkCommandBuffer createCommandBuffer(VkDevice device,
 
 VkFence createFence(VkDevice device);
 
+VkDescriptorPool createDescriptorPool(VkDevice);
+
 VkBuffer createBuffer(VkDevice device, 
     VkBufferUsageFlags usage, 
     size_t size);
 
 VkDeviceMemory createBufferMemory(VkDevice device,
     VkBuffer buffer, 
+    VkPhysicalDeviceMemoryProperties memoryProperties,
+    VkMemoryPropertyFlags memoryPropertyFlags);
+
+VkDeviceMemory createImageMemory(VkDevice device,
+    VkImage image, 
     VkPhysicalDeviceMemoryProperties memoryProperties,
     VkMemoryPropertyFlags memoryPropertyFlags);
 
@@ -108,14 +121,63 @@ void createBufferWithMemory(VkDevice device,
     VkPhysicalDeviceMemoryProperties memoryProperties,
     VkMemoryPropertyFlags memoryPropertyFlags);
 
+VkDescriptorSet createDescriptorSet(VkDevice device,
+       VkDescriptorPool descriptorPool,
+    VkDescriptorSetLayout *descriptorSetLayout,
+    uint32_t descriptorSetLayoutSize);
+
+VkImage createImage2D(VkDevice device,
+    VkFormat format,
+    VkImageUsageFlags usage,
+    uint32_t width,
+    uint32_t height,
+    uint32_t mipLevels,
+    uint32_t layers);
+
+VkSampler createSampler(VkDevice device);
+
+VkImage createImage3D(VkDevice device,
+    VkFormat format,
+    VkImageUsageFlags usage,
+    uint32_t width,
+    uint32_t height,
+    uint32_t depth,
+    uint32_t mipLevels,
+    uint32_t layers);
+
 uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties,
     uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+VkCommandBuffer beginSingleTimeCommandBuffer(VkDevice device,
+    VkCommandPool commandPool);
+
+void endSingleTimeCommandBuffer(
+    VkDevice device,
+    VkQueue commandQueue,
+    VkCommandPool commandPool,
+    VkCommandBuffer commandBuffer);
 
 void copyBuffer(
     VkDevice device,
     VkQueue queue, 
-    VkCommandBuffer commandBuffer,
+    VkCommandPool commandPool,
     VkBuffer dstBuffer,
     VkBuffer srcBuffer,
     VkDeviceSize size);
+
+void copyBufferToImage(VkDevice device, 
+    VkQueue queue,
+    VkCommandPool commandPool,
+    VkImage image, 
+    VkBuffer buffer,
+    uint32_t width,
+    uint32_t height);
+
+void transitionImageLayout(VkDevice device,
+    VkQueue queue,
+    VkCommandPool commandPool,
+    VkImage image,
+    VkFormat format,
+    VkImageLayout oldLayout,
+    VkImageLayout newLayout);
 #endif

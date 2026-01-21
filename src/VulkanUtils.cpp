@@ -168,7 +168,7 @@ VkDevice createDevice(VkPhysicalDevice physicalDevice,
     };
 
     VkPhysicalDeviceFeatures features={};
-
+    features.samplerAnisotropy = VK_TRUE;
     VkPhysicalDeviceFeatures deviceFeatures ={};
     VkDeviceCreateInfo deviceInfo ={};
     deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -226,21 +226,24 @@ VkSwapchainKHR createSwapchain(VkPhysicalDevice physicalDevice,
     return swapchain;
 }
 
-VkImageView createImageView(VkDevice device,  VkImage image, 
+VkImageView createImageView(VkDevice device, 
+    VkImage image,
+    VkImageViewType viewType,
+    VkImageAspectFlags aspectFlag, 
     VkFormat format)
 {
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     info.pNext = nullptr;
     info.flags = 0;
-    info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    info.viewType = viewType;
     info.image = image;
     info.format = format;
     info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
     info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
     info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    info.subresourceRange.aspectMask = aspectFlag;
     info.subresourceRange.baseArrayLayer = 0;
     info.subresourceRange.baseMipLevel = 0;
     info.subresourceRange.layerCount = 1;
@@ -248,6 +251,43 @@ VkImageView createImageView(VkDevice device,  VkImage image,
     VkImageView imageView{VK_NULL_HANDLE};
     VK_CHECK(vkCreateImageView(device, &info, nullptr, &imageView));
     return imageView;
+}
+
+
+VkImageView createImageView2D(VkDevice device, VkImage image, 
+    VkImageAspectFlags aspectFlag, 
+    VkFormat format)
+{
+    return createImageView(device, 
+        image, 
+        VK_IMAGE_VIEW_TYPE_2D, 
+        aspectFlag,
+        format);
+}
+
+VkSampler createSampler(VkDevice device)
+{
+    VkSamplerCreateInfo samplerInfo ={};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = 16;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.f;
+    samplerInfo.minLod = 0.f;
+    samplerInfo.maxLod = 0.f;
+
+    VkSampler sampler {VK_NULL_HANDLE};
+    VK_CHECK(vkCreateSampler(device, &samplerInfo, nullptr, &sampler));
+    return sampler;
 }
 
 VkCommandPool createCommandPool(VkDevice device, uint32_t queueFamilyIndex)
@@ -273,13 +313,15 @@ VkSemaphore createSemaphore(VkDevice device)
     return semaphore;
 }
 
-VkPipelineLayout createPipelineLayout(VkDevice device)
+VkPipelineLayout createPipelineLayout(VkDevice device,
+    VkDescriptorSetLayout* descriptorSetLayout, 
+    uint32_t descriptorSetLayoutSize)
 {
     VkPipelineLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutInfo.pNext = nullptr;
-    layoutInfo.setLayoutCount = 0;
-    layoutInfo.pSetLayouts = nullptr;
+    layoutInfo.setLayoutCount = descriptorSetLayoutSize;
+    layoutInfo.pSetLayouts = descriptorSetLayout;
     layoutInfo.pushConstantRangeCount = 0;
     layoutInfo.pPushConstantRanges= nullptr;
     VkPipelineLayout pipelineLayout;
@@ -431,7 +473,7 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     rasterizationState.depthClampEnable = VK_FALSE;
     rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.lineWidth = 1.f;
     rasterizationState.depthBiasConstantFactor = 0.f;
     rasterizationState.depthBiasClamp = 0.f;
@@ -475,23 +517,6 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
     colorBlendInfo.attachmentCount =1;
     colorBlendInfo.pAttachments  =&colorBlendAttachment;
-
-    // VkPipelineShaderStageCreateInfo shaderStages[2] ={};
-    // VkShaderModule shaderModules[2] 
-    // {
-    //     vertShaderModule,
-    //     f
-    // }
-    // for (uint32_t i =0; i < ARRAY_SIZE(shaderStages); ++i)
-    // {
-    //     shaderStages[i].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    //     shaderStages[i].pNext = nullptr;
-    //     shaderStages[i].flags = 0;
-    //     shaderStages[i].stage;
-    //     shaderStages[i].module;
-    //     shaderStages[i].pName = "main";
-    //     shaderStages[i].pSpecializationInfo = nullptr;
-    // }
 
     VkGraphicsPipelineCreateInfo graphicsPipelineInfo = {};
     graphicsPipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -603,6 +628,24 @@ VkDeviceMemory createBufferMemory(VkDevice device,
     return deviceMemory;
 }
 
+VkDeviceMemory createImageMemory(VkDevice device,
+    VkImage image, 
+    VkPhysicalDeviceMemoryProperties memoryProperties,
+    VkMemoryPropertyFlags memoryPropertyFlags)
+{
+    VkMemoryRequirements memoryRequirements ={};
+    vkGetImageMemoryRequirements(device, image, &memoryRequirements);
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;   
+    allocInfo.memoryTypeIndex = findMemoryType(memoryProperties, memoryRequirements.memoryTypeBits, 
+        memoryPropertyFlags);
+    allocInfo.allocationSize = memoryRequirements.size;
+    VkDeviceMemory deviceMemory {VK_NULL_HANDLE};
+    VK_CHECK(vkAllocateMemory(device, &allocInfo, nullptr, &deviceMemory));
+    return deviceMemory;
+}
+
 void createBufferWithMemory(VkDevice device,
     VkBuffer* buffer,
     VkDeviceSize bufferSize,
@@ -633,6 +676,22 @@ void createBufferWithMemory(VkDevice device,
     vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
 }
 
+VkDescriptorSet createDescriptorSet(VkDevice device,
+    VkDescriptorPool descriptorPool,
+    VkDescriptorSetLayout *descriptorSetLayout,
+    uint32_t descriptorSetLayoutSize)
+{
+    VkDescriptorSetAllocateInfo descriptorSetAllocInfo = {};
+    descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    descriptorSetAllocInfo.pNext = nullptr;
+    descriptorSetAllocInfo.pSetLayouts = descriptorSetLayout;
+    descriptorSetAllocInfo.descriptorSetCount = descriptorSetLayoutSize;
+    descriptorSetAllocInfo.descriptorPool = descriptorPool;
+    VkDescriptorSet descriptorSet{VK_NULL_HANDLE};
+    vkAllocateDescriptorSets(device, &descriptorSetAllocInfo, &descriptorSet);
+    return descriptorSet;
+}
+
 uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties,
     uint32_t typeFilter, 
     VkMemoryPropertyFlags properties)
@@ -649,29 +708,230 @@ uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties,
 void copyBuffer(
     VkDevice device,
     VkQueue queue,
-    VkCommandBuffer commandBuffer,
+    VkCommandPool commandPool,
     VkBuffer dstBuffer,
     VkBuffer srcBuffer,
     VkDeviceSize size)
 {
+    VkCommandBuffer commandBuffer = beginSingleTimeCommandBuffer(device, commandPool);
+    VkBufferCopy copyRegion;
+    copyRegion.size = size;
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+    endSingleTimeCommandBuffer(device, queue, commandPool,commandBuffer);
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+VkCommandBuffer beginSingleTimeCommandBuffer(VkDevice device, 
+    VkCommandPool commandPool)
+{
+    VkCommandBuffer commandBuffer = createCommandBuffer(device, commandPool);
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.pNext = nullptr;
     beginInfo.pInheritanceInfo = nullptr;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
-    VkBufferCopy copyRegion;
-    copyRegion.size = size;
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-    vkEndCommandBuffer(commandBuffer);
+    return commandBuffer;
+}
 
+void endSingleTimeCommandBuffer(
+    VkDevice device,
+    VkQueue commandQueue,
+    VkCommandPool commandPool,
+    VkCommandBuffer commandBuffer)
+{
+    vkEndCommandBuffer(commandBuffer);
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.pNext = nullptr;
     submitInfo.pCommandBuffers = &commandBuffer;
     submitInfo.commandBufferCount = 1;
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueSubmit(commandQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkDeviceWaitIdle(device);
+}
+
+VkDescriptorPool createDescriptorPool(VkDevice device)
+{
+    VkDescriptorPoolSize poolSize[2];
+    poolSize[0].descriptorCount = 128;
+    poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize[1].descriptorCount = 128;
+    poolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.pNext = nullptr;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT ;
+    poolInfo.maxSets = 512;
+    poolInfo.poolSizeCount =2;
+    poolInfo.pPoolSizes = poolSize;
+    VkDescriptorPool pool{VK_NULL_HANDLE};
+    VK_CHECK(vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool));
+    return pool;
+}
+
+VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device,
+    VkDescriptorSetLayoutBinding* bindings, uint32_t bindingSize)
+{
+    VkDescriptorSetLayoutCreateInfo descriptorSetInfo ={};
+    descriptorSetInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetInfo.flags = 0;
+    descriptorSetInfo.pNext = nullptr;
+    descriptorSetInfo.pBindings = bindings;
+    descriptorSetInfo.bindingCount = bindingSize;
+    VkDescriptorSetLayout descriptorSetLayout ={VK_NULL_HANDLE};
+    VK_CHECK(vkCreateDescriptorSetLayout(device, &descriptorSetInfo, nullptr, &descriptorSetLayout));
+    return descriptorSetLayout;
+}
+
+static VkImage createImage(
+    VkDevice device,
+    VkFormat format,
+    VkImageUsageFlags usage,
+    VkImageType imageType,
+    VkSampleCountFlagBits samples,
+    uint32_t width,
+    uint32_t height,
+    uint32_t depth,
+    uint32_t mipLevels,
+    uint32_t layers)
+{
+    VkImageCreateInfo imageInfo ={};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.pNext = nullptr;
+    imageInfo.flags = 0;
+    imageInfo.format = format;
+    imageInfo.imageType = imageType;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = depth;
+    imageInfo.mipLevels = mipLevels;
+    imageInfo.arrayLayers = layers;
+    imageInfo.samples = samples;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = usage;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    VkImage image = {VK_NULL_HANDLE};
+    VK_CHECK(vkCreateImage(device, &imageInfo, nullptr, &image));
+    return image;
+}
+
+VkImage createImage2D(VkDevice device,
+    VkFormat format,
+    VkImageUsageFlags usage,
+    uint32_t width,
+    uint32_t height,
+    uint32_t mipLevels,
+    uint32_t layers)
+{
+    return createImage(device, format, usage, VK_IMAGE_TYPE_2D,
+        VK_SAMPLE_COUNT_1_BIT, width, height, 1, mipLevels, layers);
+    
+}
+
+VkImage createImage3D(VkDevice device,
+    VkFormat format,
+    VkImageUsageFlags usage,
+    uint32_t width,
+    uint32_t height,
+    uint32_t depth,
+    uint32_t mipLevels,
+    uint32_t layers)
+{
+    return createImage(device, format, usage, VK_IMAGE_TYPE_3D,
+        VK_SAMPLE_COUNT_1_BIT, width, height, depth, mipLevels, layers);
+}
+
+void transitionImageLayout(VkDevice device,
+    VkQueue queue,
+    VkCommandPool commandPool,
+    VkImage image,
+    VkFormat format,
+    VkImageLayout oldLayout,
+    VkImageLayout newLayout)
+{
+    VkCommandBuffer commandBuffer = beginSingleTimeCommandBuffer(device, commandPool);
+
+    VkImageMemoryBarrier imageBarrier ={};
+    imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imageBarrier.pNext = nullptr;
+    imageBarrier.oldLayout = oldLayout;
+    imageBarrier.newLayout = newLayout;
+
+    imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    imageBarrier.image= image;
+    imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageBarrier.subresourceRange.baseMipLevel = 0;
+    imageBarrier.subresourceRange.levelCount = 1;
+    imageBarrier.subresourceRange.baseArrayLayer = 0;
+    imageBarrier.subresourceRange.layerCount = 1;
+    
+    VkPipelineStageFlags srcStage;
+    VkPipelineStageFlags dstStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        imageBarrier.srcAccessMask = 0;
+        imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&  newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+
+    vkCmdPipelineBarrier(commandBuffer, 
+        srcStage,
+        dstStage,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1,  &imageBarrier);
+
+    endSingleTimeCommandBuffer(device,queue, commandPool, commandBuffer);
+}
+
+void copyBufferToImage(VkDevice device, 
+    VkQueue queue,
+    VkCommandPool commandPool,
+    VkImage image, 
+    VkBuffer buffer,
+    uint32_t width,
+    uint32_t height)
+{
+    VkCommandBuffer commandBuffer = beginSingleTimeCommandBuffer(device, commandPool);
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset =  0;
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+
+    region.imageOffset ={0,0,0};
+    region.imageExtent.width = width;
+    region.imageExtent.height = height;
+    region.imageExtent.depth = 1;
+    
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount= 1;
+    region.imageSubresource.mipLevel = 0;
+
+    vkCmdCopyBufferToImage(commandBuffer, 
+        buffer, 
+        image, 
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+        1 ,
+        &region);
+
+    endSingleTimeCommandBuffer(device, queue, commandPool, commandBuffer);
 }
