@@ -1,23 +1,21 @@
 #pragma once
-#include "../VulkanUtils.h"
+#include "VulkanInternal.h"
+
 class VulkanBuffer {
 public:
-    enum class BufferStorageType { 
-        DeviceLocal,
-        SharedByCpuAndGpu,
-    };
+    VulkanBuffer();
+    ~VulkanBuffer();
 
-    enum class BufferUsageType{ 
-        Vertex,
-        Index,
-        Uniform,
-    };
+    void init(VkDevice device, 
+        VkPhysicalDeviceMemoryProperties memoryProperties,
+        VkBufferUsageFlags usage,
+        size_t size);
 
+    void destroy(VkDevice device);
 
 private:
-    BufferStorageType storageType_;
-    BufferUsageType  usageType_;
+    VkBufferUsageFlags usage_;
     size_t           bufferSize_;
     VkBuffer         buffer_;
-    VkDeviceMemory  bufferMemory_;
+    VkDeviceMemory   bufferMemory_;
 };

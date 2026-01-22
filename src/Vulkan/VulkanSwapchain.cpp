@@ -3,6 +3,7 @@
 void VulkanSwapchain::init(VkPhysicalDevice physicalDevice, 
     VkDevice device, 
     VkSurfaceKHR surface,
+    VkRenderPass renderPass,
     uint32_t graphicsQueueFamilyIndex, 
     uint32_t presentQueueFamilyIndex)
 {
@@ -16,21 +17,36 @@ void VulkanSwapchain::init(VkPhysicalDevice physicalDevice,
         graphicsQueueFamilyIndex, 
         presentQueueFamilyIndex);
     uint32_t swapchianImageCount = 0;
+    
     VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain_, &swapchianImageCount, nullptr));
-    swapchainImages_.resize(swapchianImageCount);
-    VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain_, &swapchianImageCount, swapchainImages_.data()));
-    swapchainImageViews_.resize(swapchianImageCount);
-    for (size_t i =0; i < swapchainImageViews_.size(); ++i) 
+    images_.resize(swapchianImageCount);
+    VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain_, &swapchianImageCount, images_.data()));
+    imageViews_.resize(swapchianImageCount);
+
+    for (size_t i = 0; i < imageViews_.size(); ++i) 
     {
-        swapchainImageViews_[i] = createImageView(device, 
-            swapchainImages_[i], 
+        imageViews_[i] = createImageView2D(device, 
+            images_[i], 
+            VK_IMAGE_ASPECT_COLOR_BIT,
             setting.format.format);
+    }
+
+    framebuffers_.resize(imageViews_.size());
+    for (uint32_t i = 0; i < framebuffers_.size(); ++ i) {
+        VkImageView imageView[] = { 
+            imageViews_[i]
+        };
+        framebuffers_[i] = createFrambuffer(device, renderPass, 
+            extent_,
+            imageView,
+            ARRAY_SIZE(imageView)
+        );
     }
 }
 
 void VulkanSwapchain::destroy(VkDevice device)
 {
-    for (auto& imageView: swapchainImageViews_) {
+    for (auto& imageView: imageViews_) {
         vkDestroyImageView(device, imageView, nullptr);
         imageView = VK_NULL_HANDLE;
     }

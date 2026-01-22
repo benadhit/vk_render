@@ -50,6 +50,7 @@ void Application::initRenderer()
     context.graphicsQueueFamilyIndex = graphicsQueueFamilyIndex_;
     context.imageViews_ = swapchainImageViews_;
     context.swapchain_ = swapchain_;
+    context.physicalDevice_ = physicalDevice_;
     context.commandPool_ = createCommandPool(device_, graphicsQueueFamilyIndex_);
     context.descriptorPool_ = createDescriptorPool(device_);
     context.graphicsQueue_ = graphicsQueue_;

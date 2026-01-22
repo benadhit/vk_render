@@ -9,6 +9,8 @@ public:
     VulkanInstanceBuilder();
     VulkanInstanceBuilder& addExtension(const char* extension);
     VulkanInstanceBuilder& addLayer(const char* layer);
+    VulkanInstanceBuilder& setLayers(const char* layer, uint32_t numLayers);
+    VulkanInstanceBuilder& setExtensions(const char* extension, uint32_t numExtensions);
     VulkanInstance build();
 private:
     std::vector<const char*> extensions_;

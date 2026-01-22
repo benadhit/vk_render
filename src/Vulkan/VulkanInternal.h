@@ -1,9 +1,10 @@
 #ifndef HAMON_VULKAN_INTERNAL_H__
 #define HAMON_VULKAN_INTERNAL_H__
-#include "vulkan.h"
+#include "VulkanUtils.h"
 #include <assert.h>
 #include <vector>
 #include <string>
+#include <unordered_map>
 #define VK_CHECK(call)                  \
     do{                                 \
         VkResult result = call;         \
@@ -11,5 +12,7 @@
     }while(0)
 
 template <typename T>
-class VulkanObject;
+class VulkanObject{
+
+};
 #endif

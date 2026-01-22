@@ -5,20 +5,29 @@
 class VulkanSwapchain {
 public:
     VulkanSwapchain() = default;
+    ~VulkanSwapchain();
+    VulkanSwapchain(const VulkanSwapchain&)  = delete;
+    VulkanSwapchain(VulkanSwapchain&&) noexcept;
+
+    VulkanSwapchain& operator=(const VulkanSwapchain&)  = delete;
+    VulkanSwapchain& operator=(VulkanSwapchain&&) noexcept;
+
     void init(VkPhysicalDevice physicalDevice,
         VkDevice device, 
         VkSurfaceKHR surface, 
+        VkRenderPass renderPass,
         uint32_t graphicsQueueFamilyIndex, 
         uint32_t presentQueueFamilyIndex);
+
     void destroy(VkDevice device);
 private:
-    uint32_t width;
-    uint32_t height;
-    uint32_t swapchianImageCount = 0;
+    VkExtent2D      extent_;
+    uint32_t        imageCount_ = 0;
+    uint32_t        maxFrameInFlights_;
     VkSwapchainKHR  swapchain_{VK_NULL_HANDLE};
-    std::vector<VkImage> swapchainImages_;
-    std::vector<VkImageView> swapchainImageViews_;
-    std::vector<VkFramebuffer> swapchainFramebuffers_;
+    std::vector<VkImage> images_;
+    std::vector<VkImageView> imageViews_;
+    std::vector<VkFramebuffer> framebuffers_;
 };
 
 #endif

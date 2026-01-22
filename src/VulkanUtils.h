@@ -75,23 +75,27 @@ VkPipelineLayout createPipelineLayout(VkDevice device,
     VkDescriptorSetLayout* descriptorSetLayout, 
     uint32_t descriptorSetLayoutSize);
 
-VkRenderPass createRenderPass(VkDevice device);
+VkRenderPass createRenderPass(VkDevice device, 
+    VkFormat colorFormat,
+    VkFormat depthFormat);
 
 VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device,
     VkDescriptorSetLayoutBinding* bindings, uint32_t bindingSize);
 
 VkFramebuffer createFrambuffer(VkDevice device,
     VkRenderPass renderPass,
-    VkImageView imageView,
-    VkExtent2D extent);
+    VkExtent2D extent,
+    VkImageView *imageView,
+    uint32_t numViewSize);
 
-VkPipeline createGrphicsPipeline(VkDevice device, 
+VkPipeline createGraphicsPipeline(VkDevice device, 
     VkPipelineLayout pipelineLayout,
     VkRenderPass renderPass,
     VkShaderModule vertShaderModule, 
     VkShaderModule fragShaderModule,
     uint32_t width,
     uint32_t height);
+
 VkCommandBuffer createCommandBuffer(VkDevice device, 
     VkCommandPool commandPool);
 
@@ -180,4 +184,15 @@ void transitionImageLayout(VkDevice device,
     VkFormat format,
     VkImageLayout oldLayout,
     VkImageLayout newLayout);
+
+VkFormat selectOptimalSupportedFormat(
+    VkPhysicalDevice physicalDevice,
+    VkFormat* supportedFormats, 
+    uint32_t numSupportedFormat, 
+    VkImageTiling tiling,
+    VkFormatFeatureFlags flags);
+
+VkFormat selectOptimalDepthFormat(VkPhysicalDevice physicalDevice);
+
+bool hasStencilComponent(VkFormat format);
 #endif

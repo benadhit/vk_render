@@ -27,6 +27,7 @@ VulkanInstance& VulkanInstance::operator=(VulkanInstance&& other) noexcept
     return *this;
 }
 
+
 VulkanInstanceBuilder VulkanInstance::getBuilder()
 {
     return VulkanInstanceBuilder();
@@ -44,6 +45,18 @@ VulkanInstanceBuilder& VulkanInstanceBuilder::addExtension(const char* extension
 VulkanInstanceBuilder& VulkanInstanceBuilder::addLayer(const char* layer)
 {
     layers_.push_back(layer);
+    return *this;
+}
+
+VulkanInstanceBuilder& VulkanInstanceBuilder::setLayers(const char* layer, uint32_t numLayers)
+{
+    layers_.assign(layer, layer + numLayers);
+    return *this;
+}
+
+VulkanInstanceBuilder& VulkanInstanceBuilder::setExtensions(const char* extension, uint32_t numExtensions)
+{
+    extensions_.assign(extension, extension + numExtensions);
     return *this;
 }
 

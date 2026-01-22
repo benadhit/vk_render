@@ -342,27 +342,44 @@ VkShaderModule createShaderModule(VkDevice device, const char* spvPath)
     return shaderModule;
 }
 
-VkRenderPass createRenderPass(VkDevice device)
+VkRenderPass createRenderPass(VkDevice device,  
+    VkFormat colorFormat,
+    VkFormat depthFormat)
 {
-    VkAttachmentDescription colorAttachments[1] = {};
-    colorAttachments[0].format = VK_FORMAT_B8G8R8A8_UNORM;
-    colorAttachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachments[0].flags = 0;
-    colorAttachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentDescription attachments[2] = {};
+    attachments[0].format = colorFormat;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].flags = 0;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+    attachments[1].format = depthFormat;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].flags = 0;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    
     // 
     VkAttachmentReference colorAttachmentReferences[1];
     colorAttachmentReferences[0].attachment = 0;
     colorAttachmentReferences[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
+    
+    VkAttachmentReference depthAttachmentReferences;
+    depthAttachmentReferences.attachment = 1;
+    depthAttachmentReferences.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    
     VkSubpassDescription subpassDescription = {};
     subpassDescription.colorAttachmentCount = ARRAY_SIZE(colorAttachmentReferences);
     subpassDescription.pColorAttachments = colorAttachmentReferences;
+    subpassDescription.pDepthStencilAttachment = &depthAttachmentReferences;
     subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     // 呈现
@@ -373,14 +390,13 @@ VkRenderPass createRenderPass(VkDevice device)
     dependency.srcAccessMask = 0;
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    
 
     VkRenderPassCreateInfo passInfo = {};
     passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     passInfo.flags = 0;
     passInfo.pNext= nullptr;
-    passInfo.attachmentCount = ARRAY_SIZE(colorAttachments);
-    passInfo.pAttachments = colorAttachments;
+    passInfo.attachmentCount = ARRAY_SIZE(attachments);
+    passInfo.pAttachments = attachments;
     passInfo.subpassCount = 1;
     passInfo.pSubpasses = &subpassDescription;
     passInfo.dependencyCount =1;
@@ -392,7 +408,7 @@ VkRenderPass createRenderPass(VkDevice device)
 }
 
 
-VkPipeline createGrphicsPipeline(VkDevice device, 
+VkPipeline createGraphicsPipeline(VkDevice device, 
     VkPipelineLayout pipelineLayout,
     VkRenderPass renderPass,
     VkShaderModule vertShaderModule, 
@@ -490,6 +506,16 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     multisamplingInfo.alphaToOneEnable = VK_FALSE;
 
     VkPipelineDepthStencilStateCreateInfo depthStencilInfo ={};
+    depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencilInfo.pNext = nullptr;
+    depthStencilInfo.depthTestEnable = VK_TRUE;
+    depthStencilInfo.depthWriteEnable = VK_TRUE;
+    depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
+    depthStencilInfo.minDepthBounds = 0;
+    depthStencilInfo.maxDepthBounds = 1.f;
+    depthStencilInfo.front = {};
+    depthStencilInfo.back = {};
 
     //
     VkPipelineColorBlendAttachmentState colorBlendAttachment= {};
@@ -531,7 +557,7 @@ VkPipeline createGrphicsPipeline(VkDevice device,
     graphicsPipelineInfo.pMultisampleState = &multisamplingInfo;
     graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
     graphicsPipelineInfo.pDynamicState = &dynamicStateInfo;
-    graphicsPipelineInfo.pDepthStencilState = nullptr;
+    graphicsPipelineInfo.pDepthStencilState = &depthStencilInfo;
     graphicsPipelineInfo.layout = pipelineLayout;
     graphicsPipelineInfo.renderPass = renderPass;
     graphicsPipelineInfo.subpass = 0;
@@ -551,15 +577,16 @@ VkPipeline createGrphicsPipeline(VkDevice device,
 
 VkFramebuffer createFrambuffer(VkDevice device,
     VkRenderPass renderPass,
-    VkImageView imageView,
-    VkExtent2D extent)
+    VkExtent2D extent,
+    VkImageView *imageView,
+    uint32_t numImageView)
 {
     VkFramebufferCreateInfo framebufferInfo = {};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.pNext = nullptr;
     framebufferInfo.flags = 0;
-    framebufferInfo.attachmentCount = 1;
-    framebufferInfo.pAttachments = &imageView; 
+    framebufferInfo.attachmentCount = numImageView;
+    framebufferInfo.pAttachments = imageView; 
     framebufferInfo.layers = 1;
     framebufferInfo.renderPass  = renderPass;
     framebufferInfo.width = extent.width;
@@ -844,6 +871,10 @@ VkImage createImage3D(VkDevice device,
     return createImage(device, format, usage, VK_IMAGE_TYPE_3D,
         VK_SAMPLE_COUNT_1_BIT, width, height, depth, mipLevels, layers);
 }
+bool hasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
 
 void transitionImageLayout(VkDevice device,
     VkQueue queue,
@@ -865,11 +896,21 @@ void transitionImageLayout(VkDevice device,
     imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
     imageBarrier.image= image;
-    imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
     imageBarrier.subresourceRange.baseMipLevel = 0;
     imageBarrier.subresourceRange.levelCount = 1;
     imageBarrier.subresourceRange.baseArrayLayer = 0;
     imageBarrier.subresourceRange.layerCount = 1;
+    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) 
+    {
+        imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (hasStencilComponent(format))
+        {
+            imageBarrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+    } else {
+        imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
     
     VkPipelineStageFlags srcStage;
     VkPipelineStageFlags dstStage;
@@ -889,7 +930,14 @@ void transitionImageLayout(VkDevice device,
         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
-
+    else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        imageBarrier.srcAccessMask = 0;
+        imageBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | 
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    }
     vkCmdPipelineBarrier(commandBuffer, 
         srcStage,
         dstStage,
@@ -934,4 +982,45 @@ void copyBufferToImage(VkDevice device,
         &region);
 
     endSingleTimeCommandBuffer(device, queue, commandPool, commandBuffer);
+}
+
+
+VkFormat selectOptimalSupportedFormat(
+    VkPhysicalDevice physicalDevice,
+    VkFormat* supportedFormats, 
+    uint32_t numSupportedFormat, 
+    VkImageTiling tiling,
+    VkFormatFeatureFlags features)
+{
+    for (uint32_t i = 0; i <  numSupportedFormat; ++i)
+    {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, supportedFormats[i], &properties);
+        if (tiling == VK_IMAGE_TILING_LINEAR && 
+            ((properties.linearTilingFeatures & features) == features))
+        {
+            return supportedFormats[i];
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && 
+            ((properties.optimalTilingFeatures & features) == features))
+        {
+            return supportedFormats[i];
+        }
+    }
+    assert(0);
+    return VK_FORMAT_UNDEFINED;
+}
+
+VkFormat selectOptimalDepthFormat(VkPhysicalDevice physicalDevice)
+{
+    VkFormat formats[] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT
+    };
+    return selectOptimalSupportedFormat(physicalDevice,
+        formats,
+        ARRAY_SIZE(formats),
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }

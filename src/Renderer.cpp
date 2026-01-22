@@ -14,6 +14,7 @@ Renderer::Renderer(const RendererContext& context)
 
 void Renderer::init(const char* vertSpv, const char* fragSpv)
 {
+    colorFormat_ = context_.format_;
     vertShader_ = createShaderModule(context_.device_, vertSpv);
     fragShader_ = createShaderModule(context_.device_, fragSpv);
     std::vector<VkDescriptorSetLayoutBinding> bindings(2);
@@ -29,13 +30,13 @@ void Renderer::init(const char* vertSpv, const char* fragSpv)
     bindings[1].descriptorCount = 1;
     bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[1].pImmutableSamplers = nullptr;
-
+    createDepthTexture(context_.extent_.width, context_.extent_.height);
     descriptorSetLayout_ = createDescriptorSetLayout(context_.device_, 
         bindings.data(),
         bindings.size()); 
     pipelineLayout_ = createPipelineLayout(context_.device_, &descriptorSetLayout_, 1);
-    renderPass_ = createRenderPass(context_.device_);
-    graphicPipeline_ = createGrphicsPipeline(context_.device_, 
+    renderPass_ = createRenderPass(context_.device_, colorFormat_, depthFormat_);
+    graphicPipeline_ = createGraphicsPipeline(context_.device_, 
         pipelineLayout_, 
         renderPass_, 
         vertShader_,
@@ -46,9 +47,15 @@ void Renderer::init(const char* vertSpv, const char* fragSpv)
     
     framebuffers_.resize(context_.imageViews_.size());
     for (uint32_t i = 0; i < framebuffers_.size(); ++ i) {
+        VkImageView imageView[] = { 
+            context_.imageViews_[i],
+            depthImageView_
+        };
         framebuffers_[i] = createFrambuffer(context_.device_, renderPass_, 
-            context_.imageViews_[i], 
-            context_.extent_);
+            context_.extent_,
+            imageView,
+            ARRAY_SIZE(imageView)
+        );
     }
 
     // sync object
@@ -123,15 +130,16 @@ void Renderer::frameStart()
     
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-    VkClearValue clearValue = {};
-    clearValue.color = {0,0,0,1};
+    VkClearValue clearValues[2] = {};
+    clearValues[0].color = {0,0,0,1};
+    clearValues[1].depthStencil = {1.f, 0};
 
     VkRenderPassBeginInfo passBeginInfo = {};
     passBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     passBeginInfo.pNext = nullptr;
     passBeginInfo.renderPass = renderPass_;
-    passBeginInfo.clearValueCount =1;
-    passBeginInfo.pClearValues = &clearValue;
+    passBeginInfo.clearValueCount = ARRAY_SIZE(clearValues);
+    passBeginInfo.pClearValues = clearValues;
     passBeginInfo.renderArea.extent = context_.extent_;
     passBeginInfo.renderArea.offset = {0,0};
     passBeginInfo.framebuffer = framebuffers_[imageIndex];
@@ -275,6 +283,10 @@ void Renderer::shutdown()
     vkDestroyImage(context_.device_, textureImage_, nullptr);
     vkDestroyImageView(context_.device_, textureImageView_, nullptr);
     vkFreeMemory(context_.device_, textureImageMemory_, nullptr);
+
+    vkDestroyImage(context_.device_, depthImage_, nullptr);
+    vkDestroyImageView(context_.device_, depthImageView_, nullptr);
+    vkFreeMemory(context_.device_, depthImageMemory_, nullptr);
 
     vkDestroySampler(context_.device_, textureSampler_, nullptr);
     vkDestroyDescriptorSetLayout(context_.device_, descriptorSetLayout_, nullptr);
@@ -432,4 +444,35 @@ void Renderer::loadTexture(const char* path)
         VK_IMAGE_ASPECT_COLOR_BIT,
         VK_FORMAT_R8G8B8A8_UNORM);
     textureSampler_ = createSampler(context_.device_);
+}
+
+void Renderer::createDepthTexture(uint32_t width, uint32_t height)
+{
+    depthFormat_ = selectOptimalDepthFormat(context_.physicalDevice_);
+
+    depthImage_ = createImage2D(context_.device_, 
+        depthFormat_, 
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        width,
+        height,
+        1,
+        1);
+    depthImageMemory_ = createImageMemory(context_.device_,
+        depthImage_,
+        context_.memoryProperties_,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vkBindImageMemory(context_.device_,
+        depthImage_,
+        depthImageMemory_,
+        0);
+    depthImageView_ = createImageView2D(context_.device_, depthImage_, 
+        VK_IMAGE_ASPECT_DEPTH_BIT, 
+        depthFormat_);
+    transitionImageLayout(context_.device_,
+        context_.graphicsQueue_, context_.commandPool_,
+        depthImage_,
+        depthFormat_,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL    
+    );
 }

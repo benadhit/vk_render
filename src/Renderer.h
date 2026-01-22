@@ -41,6 +41,7 @@ private:
     void createUniformBuffers();
     void createDescriptorSets();
     void loadTexture(const char* path);
+    void createDepthTexture(uint32_t width, uint32_t height);
 private:
     RendererContext context_;
     VkBuffer vertexBuffer_{VK_NULL_HANDLE};
@@ -77,6 +78,13 @@ private:
 
     VkImageView textureImageView_{VK_NULL_HANDLE};
     VkSampler textureSampler_{VK_NULL_HANDLE};
+    VkFormat colorFormat_;
+    // Depth Image
+    VkFormat depthFormat_;
+    VkImage depthImage_{VK_NULL_HANDLE};
+    VkDeviceMemory depthImageMemory_{VK_NULL_HANDLE};
+
+    VkImageView depthImageView_{VK_NULL_HANDLE};
 
     // Upload Buffer
     VkBuffer stagingBuffer_{VK_NULL_HANDLE}; 
